@@ -3,7 +3,8 @@ import PlayerStatsSection from "@/components/player-stats-section"
 import IPLSquadsSection from "@/components/ipl-squads-section"
 import SquadSelectionSection from "@/components/squad-selection-section"
 import MatchPredictionSection from "@/components/match-prediction-section"
-// import SquadFormationSummary from "@/components/squad-formation-summary"
+import SquadFormationSummary from "@/components/squad-formation-summary"
+import FooterSection from "@/components/footer-section"
 
 export default function Home() {
   return (
@@ -24,8 +25,9 @@ export default function Home() {
       <PlayerStatsSection />
       <IPLSquadsSection />
       <SquadSelectionSection />
-      <MatchPredictionSection />
       {/* <SquadFormationSummary /> */}
+      <MatchPredictionSection />
+      <FooterSection />
     </div>
   )
 }

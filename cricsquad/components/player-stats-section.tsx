@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import Link from "next/link"
 
 interface PlayerData {
   Player: string;
@@ -47,221 +47,146 @@ export default function PlayerStatsSection() {
       setPlayerData(data.stats);
     } catch (error) {
       console.error("Failed to load player data:", error);
-      // For demo, show some placeholder data
       setPlayerData(generatePlaceholderData(playerType));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generatePlaceholderData = (playerType: string): PlayerData[] => {
-    // Generate placeholder data based on player type
-    const baseData = { Player: "", Consistency: 0, Form: 0 };
-    
-    if (playerType === "Batsman") {
-      return Array(10).fill(0).map((_, i) => ({
-        ...baseData,
-        Player: `Batsman ${i+1}`,
-        Runs: Math.floor(Math.random() * 500),
-        Average: (Math.random() * 50).toFixed(2),
-        StrikeRate: (Math.random() * 150).toFixed(2),
-      }));
-    } else if (playerType === "Bowler") {
-      return Array(10).fill(0).map((_, i) => ({
-        ...baseData,
-        Player: `Bowler ${i+1}`,
-        Wickets: Math.floor(Math.random() * 30),
-        Economy: (Math.random() * 10).toFixed(2),
-        BowlingAverage: (Math.random() * 30).toFixed(2),
-      }));
-    } else if (playerType === "Wicketkeeper") {
-      return Array(10).fill(0).map((_, i) => ({
-        ...baseData,
-        Player: `Wicketkeeper ${i+1}`,
-        Dismissals: Math.floor(Math.random() * 20),
-        Catches: Math.floor(Math.random() * 15),
-        Stumpings: Math.floor(Math.random() * 5),
-      }));
-    } else {
-      return Array(10).fill(0).map((_, i) => ({
-        ...baseData,
-        Player: `Allrounder ${i+1}`,
-        Runs: Math.floor(Math.random() * 300),
-        Wickets: Math.floor(Math.random() * 15),
-        BattingAverage: (Math.random() * 30).toFixed(2),
-        BowlingAverage: (Math.random() * 30).toFixed(2),
-      }));
-    }
-  };
-
-  const renderTableHeaders = () => {
-    if (!playerData.length) return null;
-    
-    // Get all keys from the first data item
-    const headers = Object.keys(playerData[0]);
-    
-    return (
-      <TableHeader>
-        <TableRow>
-          {headers.map((header) => (
-            <TableHead key={header}>{header}</TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-    );
-  };
-
-  const renderTableRows = () => {
-    if (!playerData.length) return null;
-    
-    return (
-      <TableBody>
-        {playerData.map((player, index) => (
-          <TableRow key={index}>
-            {Object.values(player).map((value, i) => (
-              <TableCell key={i}>{value}</TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    );
-  };
-
   return (
     <section id="player-stats" className="section-container bg-muted/30">
-      <h2 className="section-title">Player Statistics</h2>
+      <div className="flex flex-col items-center text-center mb-12">
+        <h2 className="section-title mb-4">Player Statistics</h2>
+        <p className="text-muted-foreground max-w-2xl mb-8">
+          Explore comprehensive statistics for batsmen, bowlers, and all-rounders. Get detailed insights into player performances, match statistics, and career highlights.
+        </p>
+        <Link href="/players" className="w-full max-w-md">
+          <Button variant="outline" className="w-full h-14 text-lg flex items-center justify-center gap-3 hover:bg-primary hover:text-primary-foreground transition-colors">
+            <Users className="w-5 h-5" />
+            View Detailed Statistics
+          </Button>
+        </Link>
+      </div>
 
       <div className="max-w-6xl mx-auto">
-        <Tabs defaultValue="overall" className="w-full" onValueChange={(value) => {
-          setSelectedTab(value);
-          setSelectedType(null); // Reset selected type when changing tabs
-        }}>
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <Bat className="w-8 h-8 text-orange-500" />
+                <div>
+                  <h3 className="font-semibold">Batsmen</h3>
+                  <p className="text-sm text-muted-foreground">View batting averages, strike rates, and centuries</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <Bowling className="w-8 h-8 text-blue-500" />
+                <div>
+                  <h3 className="font-semibold">Bowlers</h3>
+                  <p className="text-sm text-muted-foreground">Check economy rates, wickets taken, and bowling averages</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <Shield className="w-8 h-8 text-green-500" />
+                <div>
+                  <h3 className="font-semibold">All-rounders</h3>
+                  <p className="text-sm text-muted-foreground">Analyze both batting and bowling performances</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* <Tabs defaultValue="overall" className="w-full" onValueChange={setSelectedTab}>
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="overall">Overall Stats</TabsTrigger>
-            <TabsTrigger value="lastseason">Last Season Stats</TabsTrigger>
+            <TabsTrigger value="recent">Recent Form</TabsTrigger>
+            <TabsTrigger value="career">Career Stats</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overall" className="space-y-4">
-            <p className="text-center text-muted-foreground mb-8">
-              View comprehensive statistics for all IPL players across all seasons
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                icon={<Users className="h-8 w-8" />}
-                title="Allrounder Stats"
-                onClick={() => setSelectedType("Allrounder")}
-                isSelected={selectedType === "Allrounder"}
-              />
-              <StatCard
-                icon={<Bat className="h-8 w-8" />}
-                title="Batsman Stats"
-                onClick={() => setSelectedType("Batsman")}
-                isSelected={selectedType === "Batsman"}
-              />
-              <StatCard
-                icon={<Bowling className="h-8 w-8" />}
-                title="Bowler Stats"
-                onClick={() => setSelectedType("Bowler")}
-                isSelected={selectedType === "Bowler"}
-              />
-              <StatCard
-                icon={<Shield className="h-8 w-8" />}
-                title="Wicketkeeper Stats"
-                onClick={() => setSelectedType("Wicketkeeper")}
-                isSelected={selectedType === "Wicketkeeper"}
-              />
+          <TabsContent value="overall" className="mt-0">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Player</TableHead>
+                    <TableHead>Matches</TableHead>
+                    <TableHead>Runs/Wickets</TableHead>
+                    <TableHead>Average</TableHead>
+                    <TableHead>Strike Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        Loading player statistics...
+                      </TableCell>
+                    </TableRow>
+                  ) : playerData.length > 0 ? (
+                    playerData.map((player, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{player.Player}</TableCell>
+                        <TableCell>{player.Matches || '-'}</TableCell>
+                        <TableCell>{player.Runs || player.Wickets || '-'}</TableCell>
+                        <TableCell>{player.Average || '-'}</TableCell>
+                        <TableCell>{player.StrikeRate || '-'}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        Select a player type to view statistics
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </TabsContent>
 
-          <TabsContent value="lastseason" className="space-y-4">
-            <p className="text-center text-muted-foreground mb-8">
-              View statistics for all IPL players from the most recent season
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                icon={<Users className="h-8 w-8" />}
-                title="Allrounder Stats"
-                onClick={() => setSelectedType("Allrounder")}
-                isSelected={selectedType === "Allrounder"}
-              />
-              <StatCard
-                icon={<Bat className="h-8 w-8" />}
-                title="Batsman Stats"
-                onClick={() => setSelectedType("Batsman")}
-                isSelected={selectedType === "Batsman"}
-              />
-              <StatCard
-                icon={<Bowling className="h-8 w-8" />}
-                title="Bowler Stats"
-                onClick={() => setSelectedType("Bowler")}
-                isSelected={selectedType === "Bowler"}
-              />
-              <StatCard
-                icon={<Shield className="h-8 w-8" />}
-                title="Wicketkeeper Stats"
-                onClick={() => setSelectedType("Wicketkeeper")}
-                isSelected={selectedType === "Wicketkeeper"}
-              />
+          <TabsContent value="recent" className="mt-0">
+            <div className="text-center py-8 text-muted-foreground">
+              Recent form statistics will be displayed here
             </div>
           </TabsContent>
-        </Tabs>
 
-        {selectedType && (
-          <div className="mt-8 border rounded-lg overflow-hidden">
-            <div className="p-4 bg-muted/50 border-b flex justify-between items-center">
-              <h3 className="text-lg font-medium">{selectedType} Statistics</h3>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSelectedType(null)}
-              >
-                Close
-              </Button>
+          <TabsContent value="career" className="mt-0">
+            <div className="text-center py-8 text-muted-foreground">
+              Career statistics will be displayed here
             </div>
-            
-            {isLoading ? (
-              <div className="p-8 text-center">Loading statistics...</div>
-            ) : (
-              <div className="overflow-x-auto max-h-[400px]">
-
-                  <Table >
-                    {renderTableHeaders()}
-                    {renderTableRows()}
-                  </Table>
-
-              </div>
-            )}
-          </div>
-        )}
+          </TabsContent>
+        </Tabs> */}
       </div>
     </section>
   )
 }
 
-interface StatCardProps {
-  icon: React.ReactNode
-  title: string
-  onClick: () => void
-  isSelected?: boolean
-}
-
-function StatCard({ icon, title, onClick, isSelected }: StatCardProps) {
-  return (
-    <Card className={`overflow-hidden card-hover ${isSelected ? 'border-primary' : ''}`}>
-      <CardContent className="p-6">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="p-3 rounded-full bg-primary/10 text-primary">{icon}</div>
-          <h3 className="font-medium">{title}</h3>
-          <Button 
-            onClick={onClick} 
-            className="w-full" 
-            variant={isSelected ? "default" : "outline"}
-          >
-            View Stats
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
+const generatePlaceholderData = (playerType: string): PlayerData[] => {
+  return [
+    {
+      Player: "Sample Player 1",
+      Matches: 10,
+      Runs: 250,
+      Average: 25.00,
+      StrikeRate: 120.50
+    },
+    {
+      Player: "Sample Player 2",
+      Matches: 8,
+      Runs: 180,
+      Average: 22.50,
+      StrikeRate: 115.75
+    }
+  ];
+}; 

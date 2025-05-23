@@ -311,3 +311,4 @@ export function predictMatchOutcome(team1: any, team2: any) {
     margin: Math.abs(team1Score.runs - team2Score.runs),
   }
 }
+

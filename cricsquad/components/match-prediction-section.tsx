@@ -4,20 +4,28 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 import * as XLSX from "xlsx"
 
 const venues = [
-  "M. A. Chidambaram Stadium, Chennai",
-  "Arun Jaitley Stadium, Delhi",
-  "Narendra Modi Stadium, Ahmedabad",
   "Eden Gardens, Kolkata",
-  "Ekana Cricket Stadium, Lucknow",
   "Wankhede Stadium, Mumbai",
-  "Punjab Cricket Association Stadium, Mohali",
-  "Sawai Mansingh Stadium, Jaipur",
-  "M. Chinnaswamy Stadium, Bangalore",
-  "Rajiv Gandhi International Cricket Stadium, Hyderabad",
+  "Arun Jaitley Stadium",
+  "Narendra Modi Stadium, Ahmedabad",
+  "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow",
   "Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium",
+  "Punjab Cricket Association IS Bindra Stadium, Mohali, Chandigarh",
+  "Sawai Mansingh Stadium, Jaipur",
+  "Holkar Cricket Stadium",
+  "JSCA International Stadium Complex",
+  "Saurashtra Cricket Association Stadium",
+  "M Chinnaswamy Stadium, Bengaluru",
+  "MA Chidambaram Stadium, Chepauk, Chennai",
+  "Rajiv Gandhi International Stadium, Uppal",
+  "Dr DY Patil Sports Academy, Mumbai",
+  "Brabourne Stadium, Mumbai",
+  "Maharashtra Cricket Association Stadium, Pune",
+  "Himachal Pradesh Cricket Association Stadium"
 ]
 
 interface PlayerData {
@@ -47,6 +55,19 @@ interface OppositionPlayerData {
   Nationality: string
 }
 
+interface PredictionResult {
+  predicted_score: number;
+  batting_team: string;
+  bowling_team: string;
+  venue: string;
+  innings: number;
+  current_score?: number;
+  balls_left?: number;
+  wickets_left?: number;
+  current_run_rate?: number;
+  last_five?: number;
+}
+
 export default function MatchPredictionForm() {
   const [selectedTeam, setSelectedTeam] = useState("")
   const [oppositionTeam, setOppositionTeam] = useState("")
@@ -57,6 +78,9 @@ export default function MatchPredictionForm() {
   const [teamPlayersData, setTeamPlayersData] = useState<Record<string, PlayerData[]>>({})
   const [oppositionTeamData, setOppositionTeamData] = useState<Record<string, OppositionPlayerData[]>>({})
   const [loading, setLoading] = useState(false)
+  const [predictionLoading, setPredictionLoading] = useState(false)
+  const [predictionResult, setPredictionResult] = useState<PredictionResult | null>(null)
+  const [selectedInnings, setSelectedInnings] = useState<number>(1)
 
   const foreignPlayerCount = selectedPlayers.filter(
     player => player.Nationality !== "Indian"
@@ -148,6 +172,57 @@ export default function MatchPredictionForm() {
     }
   }
 
+  const handlePrediction = async () => {
+    if (selectedPlayers.length !== 11) {
+      alert("Please select exactly 11 players");
+      return;
+    }
+
+    if (!venue) {
+      alert("Please select a venue");
+      return;
+    }
+
+    if (!oppositionTeam) {
+      alert("Please select an opposition team");
+      return;
+    }
+
+    setPredictionLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/predict-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          players: selectedPlayers.map(p => p.Player),
+          venue: venue,
+          batting_team: selectedTeam,
+          bowling_team: oppositionTeam,
+          innings: selectedInnings,
+          current_score: 0,
+          balls_left: 120,
+          wickets_left: 10,
+          current_run_rate: 0,
+          last_five: 0
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get prediction: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      setPredictionResult(result);
+    } catch (error) {
+      console.error("Failed to get prediction:", error);
+      alert("Failed to get prediction. Please try again.");
+    } finally {
+      setPredictionLoading(false);
+    }
+  };
+
   return (
     <Card className="border border-gray-200 dark:border-gray-700">
       <CardContent className="p-6">
@@ -161,7 +236,7 @@ export default function MatchPredictionForm() {
               {/* Team Selection */}
               <div className="space-y-2 border border-blue-300 dark:border-blue-700 p-3 rounded-md bg-blue-50 dark:bg-blue-900/30">
                 <Label htmlFor="select-team" className="font-bold text-blue-800 dark:text-blue-200">
-                  Select Team
+                  Select Batting Team
                 </Label>
                 <Select value={selectedTeam} onValueChange={handleTeamChange}>
                   <SelectTrigger 
@@ -213,7 +288,7 @@ export default function MatchPredictionForm() {
               {/* Opposition Team Selection */}
               <div className="space-y-2 border border-red-300 dark:border-red-700 p-3 rounded-md bg-red-50 dark:bg-red-900/30">
                 <Label htmlFor="opposition-team" className="font-bold text-red-800 dark:text-red-200">
-                  Opposition Team
+                  Opposition/Bowling Team
                 </Label>
                 <Select value={oppositionTeam} onValueChange={setOppositionTeam}>
                   <SelectTrigger 
@@ -234,6 +309,25 @@ export default function MatchPredictionForm() {
                           {team}
                         </SelectItem>
                       ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Add Innings Selection */}
+              <div className="space-y-2 border border-green-300 dark:border-green-700 p-3 rounded-md bg-green-50 dark:bg-green-900/30">
+                <Label htmlFor="innings" className="font-bold text-green-800 dark:text-green-200">
+                  Innings
+                </Label>
+                <Select value={selectedInnings.toString()} onValueChange={(value) => setSelectedInnings(parseInt(value))}>
+                  <SelectTrigger 
+                    id="innings" 
+                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  >
+                    <SelectValue placeholder="Select innings" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">First Innings</SelectItem>
+                    <SelectItem value="2">Second Innings</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -471,6 +565,57 @@ export default function MatchPredictionForm() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Add Prediction Button and Results */}
+            <div className="mt-8">
+              <Button
+                onClick={handlePrediction}
+                disabled={predictionLoading || selectedPlayers.length !== 11 || !venue || !oppositionTeam}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg shadow-md hover:from-blue-700 hover:to-blue-900 transition-all"
+              >
+                {predictionLoading ? "Predicting..." : "Predict Match Score"}
+              </Button>
+
+              {predictionResult && (
+                <div className="mt-6 p-6 border-2 border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <h3 className="text-xl font-bold text-blue-800 dark:text-blue-200 mb-4">
+                    Match Prediction
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-blue-200 dark:border-blue-800">
+                      <span className="text-gray-600 dark:text-gray-300">Predicted Score:</span>
+                      <span className="text-2xl font-bold text-blue-800 dark:text-blue-200">
+                        {Math.round(predictionResult.predicted_score)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-blue-200 dark:border-blue-800">
+                      <span className="text-gray-600 dark:text-gray-300">Batting Team:</span>
+                      <span className="font-medium text-blue-800 dark:text-blue-200">
+                        {predictionResult.batting_team}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-blue-200 dark:border-blue-800">
+                      <span className="text-gray-600 dark:text-gray-300">Bowling Team:</span>
+                      <span className="font-medium text-blue-800 dark:text-blue-200">
+                        {predictionResult.bowling_team}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-blue-200 dark:border-blue-800">
+                      <span className="text-gray-600 dark:text-gray-300">Venue:</span>
+                      <span className="font-medium text-blue-800 dark:text-blue-200">
+                        {predictionResult.venue}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-gray-600 dark:text-gray-300">Innings:</span>
+                      <span className="font-medium text-blue-800 dark:text-blue-200">
+                        {predictionResult.innings === 1 ? "First" : "Second"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

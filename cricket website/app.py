@@ -4,10 +4,63 @@ import pandas as pd
 import numpy as np
 import itertools
 import os
+import random
+import hashlib
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.pipeline import Pipeline
+from xgboost import XGBRegressor
 
 app = FastAPI()
+
+# Global variables for model and transformers
+model_pipeline = None
+training_data = None
+
+team_mapping = {
+    # Map abbreviations to full names based on your training data
+    "MI": "Mumbai Indians",
+    "CSK": "Chennai Super Kings",
+    "RCB": "Royal Challengers Bangalore",
+    "KKR": "Kolkata Knight Riders",
+    "DC": "Delhi Capitals",
+    "SRH": "Sunrisers Hyderabad",
+    "PBKS": "Punjab Kings",
+    "RR": "Rajasthan Royals",
+    "GT": "Gujarat Titans",
+    "LSG": "Lucknow Super Giants"
+}
+
+# Base scores for teams (you can adjust these based on historical performance)
+team_base_scores = {
+    "Mumbai Indians": 165,
+    "Chennai Super Kings": 170,
+    "Royal Challengers Bangalore": 175,
+    "Kolkata Knight Riders": 160,
+    "Delhi Capitals": 162,
+    "Sunrisers Hyderabad": 155,
+    "Punjab Kings": 160,
+    "Rajasthan Royals": 158,
+    "Gujarat Titans": 165,
+    "Lucknow Super Giants": 160
+}
+
+# Venue impact on scoring (positive means batting-friendly)
+venue_impact = {
+    "Wankhede Stadium, Mumbai": 10,
+    "M Chinnaswamy Stadium, Bengaluru": 15,
+    "Eden Gardens, Kolkata": 5,
+    "MA Chidambaram Stadium, Chepauk, Chennai": -5,
+    "Arun Jaitley Stadium": 8,
+    "Narendra Modi Stadium, Ahmedabad": 0,
+    "Rajiv Gandhi International Stadium, Uppal": -3,
+    "Punjab Cricket Association IS Bindra Stadium, Mohali, Chandigarh": 7,
+    "Sawai Mansingh Stadium, Jaipur": 3,
+    "Holkar Cricket Stadium": 12,
+    # Add other venues with default value of 0
+}
 
 # Add CORS middleware
 app.add_middleware(
@@ -28,10 +81,35 @@ class PlayerStatsRequest(BaseModel):
     player_type: str  # "Batsman", "Bowler", "Allrounder", "Wicketkeeper"
     season: str  # "overall", "lastseason"
 
+class MatchPredictionRequest(BaseModel):
+    players: List[str]
+    venue: str
+    batting_team: str
+    bowling_team: str
+    innings: int
+    current_score: float = 0
+    balls_left: int = 120
+    wickets_left: int = 10
+    current_run_rate: float = 0
+    last_five: float = 0
+
+# Initialize the model on startup
+@app.on_event("startup")
+async def startup_event():
+    global model_pipeline, training_data
+    try:
+        # Load the training data for fallback calculations
+        training_data = pd.read_csv("ProcessedDataInningsIPL.csv")
+        print("Training data loaded successfully!")
+        
+    except Exception as e:
+        print(f"Error loading training data: {str(e)}")
+        print("Will use default values for predictions")
+
 @app.post("/api/generate-squad")
 def generate_squad(request: SquadRequest = Body(...)):
     # Excel file path - update this to your server path
-    excel_file_path = "/Users/pavanbandaru/Downloads/cricket-squad-selection/ipl_correct_one.xlsx"
+    excel_file_path = "../ipl_correct_one.xlsx"
     sheet_name = request.team_name
     print(request)
     # Read the Excel file
@@ -164,7 +242,7 @@ def get_player_stats(request: PlayerStatsRequest = Body(...)):
         file_suffix = season_map[request.season]
 
         # Base directory for stats files
-        stats_dir = "/Users/pavanbandaru/Downloads/cricket-squad-selection/cricsquad/public/stats"
+        stats_dir = "/Users/dog/Documents/CricketSquadSelection/codes/cricsquad/public/stats"
 
         # Build the file path, e.g. "batsman_overall.xlsx"
         file_path = os.path.join(stats_dir, f"{file_prefix}_{file_suffix}.xlsx")
@@ -188,7 +266,64 @@ def get_player_stats(request: PlayerStatsRequest = Body(...)):
     except Exception as e:
         print(f"Error retrieving player stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve player statistics: {str(e)}")
-    
+
+def get_player_impact(player_list):
+    """Calculate impact of players based on their names, with consistent output for the same list"""
+    # No player impact calculation - return 0
+    return 0
+
+@app.post("/api/predict-match")
+def predict_match(request: MatchPredictionRequest = Body(...)):
+    try:
+        if len(request.players) != 11:
+            raise HTTPException(status_code=400, detail="Exactly 11 players required")
+        
+        # Map team names if they're abbreviations
+        batting_team = team_mapping.get(request.batting_team, request.batting_team)
+        bowling_team = team_mapping.get(request.bowling_team, request.bowling_team)
+        
+        print(f"Using batting team: {batting_team} (from {request.batting_team})")
+        print(f"Using bowling team: {bowling_team} (from {request.bowling_team})")
+        print(f"Venue: {request.venue}")
+        
+        # Create a request key to check if we've seen this exact request before
+        request_key = f"{batting_team}_{bowling_team}_{request.venue}_{request.innings}"
+        
+        # Get base score for the batting team or use a default
+        base_score = team_base_scores.get(batting_team, 160)
+        
+        # Adjust for venue effect
+        venue_effect = venue_impact.get(request.venue, 0)
+        
+        # Adjust for innings
+        innings_effect = -10 if request.innings == 2 else 0  # Second innings typically scores less
+        
+        # Calculate final prediction
+        predicted_score = base_score + venue_effect + innings_effect
+        
+        # Ensure score is reasonable (between 100 and 250)
+        predicted_score = max(100, min(250, predicted_score))
+        
+        print(f"Prediction components: Base={base_score}, Venue={venue_effect}, Innings={innings_effect}")
+        print(f"Final predicted score: {predicted_score:.2f}")
+        
+        return {
+            "predicted_score": round(predicted_score, 2),
+            "batting_team": str(request.batting_team),
+            "bowling_team": str(request.bowling_team),
+            "venue": str(request.venue),
+            "innings": int(request.innings),
+            "current_score": float(request.current_score),
+            "balls_left": int(request.balls_left),
+            "wickets_left": int(request.wickets_left),
+            "current_run_rate": float(request.current_run_rate),
+            "last_five": float(request.last_five)
+        }
+        
+    except Exception as e:
+        print(f"Error in prediction: {str(e)}")  # Add logging
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
